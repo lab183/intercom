@@ -119,11 +119,8 @@ def resolve_language(voice, lang=None):
     return lang or language_for_voice(voice) or "en"
 
 
-def synthesize(text, voice=DEFAULT_VOICE, lang=None):
-    """Generate speech and return (pcm16 samples, sample rate).
-
-    Models and voice states are cached, so repeated calls in a long-lived process
-    (like the MCP server) only pay the load cost once."""
+def load_voice(voice=DEFAULT_VOICE, lang=None):
+    """Load (and cache) the model and voice state; returns (model, voice_state)."""
     # Imported late so --help and --list-voices stay fast.
     from pocket_tts import TTSModel
 
@@ -134,7 +131,16 @@ def synthesize(text, voice=DEFAULT_VOICE, lang=None):
     tts_model = _models[lang]
     if (lang, voice) not in _voice_states:
         _voice_states[(lang, voice)] = tts_model.get_state_for_audio_prompt(voice)
-    audio = tts_model.generate_audio(_voice_states[(lang, voice)], text)
+    return tts_model, _voice_states[(lang, voice)]
+
+
+def synthesize(text, voice=DEFAULT_VOICE, lang=None):
+    """Generate speech and return (pcm16 samples, sample rate).
+
+    Models and voice states are cached, so repeated calls in a long-lived process
+    (like the MCP server) only pay the load cost once."""
+    tts_model, voice_state = load_voice(voice, lang)
+    audio = tts_model.generate_audio(voice_state, text)
     # Audio is a 1D torch tensor containing PCM data.
     return to_pcm16(audio.numpy()), tts_model.sample_rate
 

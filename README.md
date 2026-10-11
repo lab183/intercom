@@ -41,8 +41,8 @@ intercom --list-voices
 ## MCP server
 
 `src/mcp_server.py` exposes the same engine to MCP clients (Claude Code, Claude Desktop, etc.) over
-stdio. The model is loaded on the first call and kept in memory, so later messages are much faster
-than running the CLI each time.
+stdio. The default model is loaded in the background when the server starts and kept in memory, so
+messages play much faster than running the CLI each time.
 
 Register it with your client. For Claude Code:
 
@@ -66,7 +66,7 @@ For clients configured with JSON:
 
 | Tool | Description |
 | --- | --- |
-| `intercom(message, voice?, lang?, wait?, output_path?)` | Speak a message out loud. Returns as soon as playback starts unless `wait` is true. A new message interrupts one still playing. `output_path` (a `.wav`) also saves the audio. |
+| `intercom(message, voice?, lang?, wait?)` | Speak a message out loud. Returns as soon as playback starts unless `wait` is true. A new message interrupts one still playing. |
 | `stop_speaking()` | Stop any speech that is currently playing. |
 | `list_voices()` | List the pre-made voices by language code. |
 

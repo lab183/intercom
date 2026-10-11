@@ -11,17 +11,11 @@ Examples:
 import argparse
 import sys
 
-# Voice name -> pocket_tts language config stem (the model language the voice belongs to).
-VOICES = {
-    "english": ["alba", "anna", "azelma", "bill_boerst", "caro_davy", "charles", "cosette", "eponine", "eve", "fantine", "george", "jane", "jean", "javert", "marius", "mary", "michael", "paul", "peter_yearsley", "stuart_bell", "vera"],
-    "italian": ["giovanni"],
-    "spanish": ["lola"],
-    "german": ["juergen"],
-    "portuguese": ["rafael"],
-    "french": ["estelle"],
-    "dutch": ["daan"],
-}
-LANG_CODES = {"en": "english", "it": "italian", "es": "spanish", "de": "german", "pt": "portuguese", "fr": "french", "nl": "dutch"}
+from main import LANGUAGE_NAMES, POCKET_TTS_VOICES
+
+# Voice data lives in main.py; keyed here by pocket_tts language name.
+VOICES = {LANGUAGE_NAMES[code]: voices for code, voices in POCKET_TTS_VOICES.items()}
+LANG_CODES = LANGUAGE_NAMES
 LANGUAGE_OF = {voice: lang for lang, voices in VOICES.items() for voice in voices}
 
 

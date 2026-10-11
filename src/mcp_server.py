@@ -45,9 +45,28 @@ atexit.register(_cleanup_playing)
 
 
 def _synthesize(text, voice, lang):
-    # stdout is the MCP protocol channel; keep stray library output off it.
-    with _synth_lock, contextlib.redirect_stdout(sys.stderr):
+    with _synth_lock:
         return engine.synthesize(text, voice, lang)
+
+
+def _warm_up():
+    """Load the default model and voice so the first message isn't slow."""
+    try:
+        with _synth_lock:
+            engine.load_voice()
+    except Exception as e:
+        print(f"intercom: warm-up failed: {e}", file=sys.stderr)
+
+
+def _check_voice(voice):
+    """Fail early, with a useful message, on voices that can't possibly load."""
+    if engine.language_for_voice(voice) or voice.startswith(("hf://", "http")):
+        return
+    if not Path(voice).is_file():
+        raise ToolError(
+            f"unknown voice {voice!r}: use a name from list_voices, an hf:// URL, "
+            "or the path to an audio file"
+        )
 
 
 def _play(pcm, sample_rate, wait):
@@ -73,7 +92,6 @@ async def intercom(
     voice: str = engine.DEFAULT_VOICE,
     lang: str | None = None,
     wait: bool = False,
-    output_path: str | None = None,
 ) -> str:
     """Speak a message out loud on the user's computer using text-to-speech.
 
@@ -86,24 +104,21 @@ async def intercom(
         wait: If true, return only after the audio has finished playing. By default the
             call returns as soon as playback starts. Starting a new message interrupts
             one that is still playing.
-        output_path: Optional path of a .wav file to also save the audio to.
     """
     message = message.strip()
     if not message:
         raise ToolError("message is empty")
     if lang is not None and lang not in engine.LANGUAGE_NAMES:
         raise ToolError(f"unknown lang {lang!r}; choose from {', '.join(engine.LANGUAGE_NAMES)}")
-    if output_path and Path(output_path).suffix.lower() != ".wav":
-        raise ToolError("output_path must end in .wav")
+    _check_voice(voice)
 
-    pcm, sample_rate = await asyncio.to_thread(_synthesize, message, voice, lang)
-    if output_path:
-        scipy.io.wavfile.write(output_path, sample_rate, pcm)
+    try:
+        pcm, sample_rate = await asyncio.to_thread(_synthesize, message, voice, lang)
+    except Exception as e:
+        raise ToolError(f"speech generation failed: {e}") from e
     await asyncio.to_thread(_play, pcm, sample_rate, wait)
 
-    seconds = len(pcm) / sample_rate
-    saved = f", saved to {output_path}" if output_path else ""
-    return f"Spoke {seconds:.1f}s of audio with voice {voice!r}{saved}."
+    return f"Spoke {len(pcm) / sample_rate:.1f}s of audio with voice {voice!r}."
 
 
 @mcp.tool()
@@ -121,6 +136,7 @@ def list_voices() -> dict[str, list[str]]:
 
 
 def main():
+    threading.Thread(target=_warm_up, daemon=True).start()
     mcp.run()
 
 
