@@ -1,8 +1,9 @@
 """MCP server that lets a local agent speak through Pocket TTS (Windows only).
 
-Run it over stdio with `intercom-mcp` (or `uv run src/mcp_server.py`) and register it with
-your MCP client. See README.md for an example configuration.
+Run it with `intercom-mcp` (or `uv run src/mcp_server.py`): over stdio by default, or as an
+HTTP server with `--transport streamable-http`. See README.md for client configuration.
 """
+import argparse
 import asyncio
 import atexit
 import contextlib
@@ -135,10 +136,53 @@ def list_voices() -> dict[str, list[str]]:
     return engine.POCKET_TTS_VOICES
 
 
-def main():
+LOOPBACK_HOSTS = ("127.0.0.1", "localhost", "::1")
+
+
+def parse_args(argv=None):
+    parser = argparse.ArgumentParser(
+        prog="intercom-mcp",
+        description="MCP server that speaks text with Pocket TTS.",
+    )
+    parser.add_argument(
+        "--transport",
+        choices=["stdio", "streamable-http"],
+        default="stdio",
+        help="stdio (default; the client launches the server) or streamable-http "
+             "(a long-running server at http://HOST:PORT/mcp).",
+    )
+    parser.add_argument("--host", default="127.0.0.1", help="streamable-http bind address (default: 127.0.0.1).")
+    parser.add_argument("--port", type=int, default=8000, help="streamable-http port (default: 8000).")
+    parser.add_argument(
+        "--allow-remote",
+        action="store_true",
+        help="Allow binding to a non-loopback address. There is no authentication: "
+             "anyone who can reach the port can make this computer speak.",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv=None):
+    args = parse_args(argv)
+    if (
+        args.transport == "streamable-http"
+        and args.host not in LOOPBACK_HOSTS
+        and not args.allow_remote
+    ):
+        print(
+            f"intercom-mcp: refusing to bind to {args.host!r} without authentication; "
+            "pass --allow-remote to override",
+            file=sys.stderr,
+        )
+        return 1
+
     threading.Thread(target=_warm_up, daemon=True).start()
-    mcp.run()
+    if args.transport == "stdio":
+        mcp.run()
+    else:
+        mcp.run("streamable-http", host=args.host, port=args.port)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

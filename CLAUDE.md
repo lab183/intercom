@@ -8,7 +8,9 @@ speaks text. Don't add features (streaming, queues, speed/pitch, cross-platform 
 
 - `src/main.py` — the engine and CLI. `synthesize()` / `load_voice()` cache models and voice
   states; voice and language tables live here (single source of truth).
-- `src/mcp_server.py` — MCP server (`intercom`, `stop_speaking`, `list_voices`). Imports `main` as `engine`.
+- `src/mcp_server.py` — MCP server (`intercom`, `stop_speaking`, `list_voices`) over stdio (default) or
+  streamable HTTP (`--transport streamable-http`, loopback only unless `--allow-remote`). SSE is
+  deliberately not supported. Imports `main` as `engine`.
 - `src/download_voices.py` — pre-downloads voices; imports its voice data from `main`.
 - Modules are flat `py-modules` under `src/` (see `pyproject.toml`), not a package. The folder is
   still named `ptts` on disk; the project was renamed to `intercom`.
@@ -24,7 +26,10 @@ speaks text. Don't add features (streaming, queues, speed/pitch, cross-platform 
 - `mcp` is 2.x: use `from mcp.server.mcpserver import MCPServer`, not `FastMCP`. Raise
   `mcp.server.mcpserver.exceptions.ToolError` for errors the agent should see; any other exception
   becomes an opaque "Error executing tool".
-- The server speaks MCP over stdout. Never `print()` to stdout in server code; use stderr.
+- In stdio mode the server speaks MCP over stdout. Never `print()` to stdout in server code; use stderr.
+- The HTTP transport has no auth. Keep the loopback-by-default guard; the tool makes sound on the host.
+- To test HTTP, start the server in the background on a spare port, use
+  `mcp.client.streamable_http.streamable_http_client`, and kill the server afterwards.
 - Playback must block in the CLI (`winsound.PlaySound` without `SND_ASYNC`): the process exits and
   the temp file is deleted right after. The server is long-lived, so it uses `SND_ASYNC` and keeps
   the temp file until the next clip, stop, or exit.

@@ -44,7 +44,9 @@ intercom --list-voices
 stdio. The default model is loaded in the background when the server starts and kept in memory, so
 messages play much faster than running the CLI each time.
 
-Register it with your client. For Claude Code:
+### stdio (default)
+
+The client launches the server itself. For Claude Code:
 
 ```
 claude mcp add intercom -- uv run --directory C:/path/to/intercom intercom-mcp
@@ -63,6 +65,23 @@ For clients configured with JSON:
   }
 }
 ```
+
+### Streamable HTTP
+
+Run the server yourself and point clients at its URL:
+
+```
+intercom-mcp --transport streamable-http              # http://127.0.0.1:8000/mcp
+intercom-mcp --transport streamable-http --port 9000
+claude mcp add --transport http intercom http://127.0.0.1:8000/mcp
+```
+
+It binds to `127.0.0.1` only, and requests with a foreign `Host` header are rejected. There is no
+authentication, so binding to any other address is refused unless you pass `--allow-remote`. Only do
+that on a network you trust: anyone who can reach the port can make your computer speak.
+
+The speaker is shared: a new message from any client interrupts the one that is playing, and
+`stop_speaking` stops it for everyone.
 
 | Tool | Description |
 | --- | --- |
