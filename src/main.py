@@ -33,7 +33,7 @@ DEFAULT_VOICE = "anna"
 
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(
-        prog="ptts",
+        prog="intercom",
         description="Convert text to speech with Pocket TTS and play it.",
     )
     parser.add_argument(
@@ -111,6 +111,34 @@ def to_pcm16(audio):
     return (np.clip(audio, -1.0, 1.0) * 32767).astype(np.int16)
 
 
+_models = {}
+_voice_states = {}
+
+
+def resolve_language(voice, lang=None):
+    return lang or language_for_voice(voice) or "en"
+
+
+def synthesize(text, voice=DEFAULT_VOICE, lang=None):
+    """Generate speech and return (pcm16 samples, sample rate).
+
+    Models and voice states are cached, so repeated calls in a long-lived process
+    (like the MCP server) only pay the load cost once."""
+    # Imported late so --help and --list-voices stay fast.
+    from pocket_tts import TTSModel
+
+    lang = resolve_language(voice, lang)
+    if lang not in _models:
+        patch_config_loading()
+        _models[lang] = TTSModel.load_model(language=LANGUAGE_NAMES[lang])
+    tts_model = _models[lang]
+    if (lang, voice) not in _voice_states:
+        _voice_states[(lang, voice)] = tts_model.get_state_for_audio_prompt(voice)
+    audio = tts_model.generate_audio(_voice_states[(lang, voice)], text)
+    # Audio is a 1D torch tensor containing PCM data.
+    return to_pcm16(audio.numpy()), tts_model.sample_rate
+
+
 def main(argv=None):
     args = parse_args(argv)
 
@@ -120,31 +148,22 @@ def main(argv=None):
 
     text = get_text(args).strip()
     if not text:
-        print("ptts: no text provided", file=sys.stderr)
+        print("intercom: no text provided", file=sys.stderr)
         return 1
     if args.no_play and not args.output:
-        print("ptts: --no-play requires --output", file=sys.stderr)
+        print("intercom: --no-play requires --output", file=sys.stderr)
         return 1
 
-    # Imported late so --help and --list-voices stay fast.
-    from pocket_tts import TTSModel
-
-    patch_config_loading()
-    lang = args.lang or language_for_voice(args.voice) or "en"
-    tts_model = TTSModel.load_model(language=LANGUAGE_NAMES[lang])
-    voice_state = tts_model.get_state_for_audio_prompt(args.voice)
-    audio = tts_model.generate_audio(voice_state, text)
-    # Audio is a 1D torch tensor containing PCM data.
-    pcm = to_pcm16(audio.numpy())
+    pcm, sample_rate = synthesize(text, args.voice, args.lang)
 
     if args.output:
-        scipy.io.wavfile.write(args.output, tts_model.sample_rate, pcm)
+        scipy.io.wavfile.write(args.output, sample_rate, pcm)
 
     if not args.no_play:
         fd, path = tempfile.mkstemp(suffix=".wav")
         os.close(fd)
         try:
-            scipy.io.wavfile.write(path, tts_model.sample_rate, pcm)
+            scipy.io.wavfile.write(path, sample_rate, pcm)
             # Blocks until playback finishes
             winsound.PlaySound(path, winsound.SND_FILENAME)
         finally:

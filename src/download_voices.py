@@ -3,10 +3,10 @@
 Files land in the Hugging Face cache (the same place pocket_tts reads from).
 
 Examples:
-    uv run download_voices.py bill_boerst
-    uv run download_voices.py jane george mary
-    uv run download_voices.py --all
-    uv run download_voices.py --lang en
+    uv run src/download_voices.py bill_boerst
+    uv run src/download_voices.py jane george mary
+    uv run src/download_voices.py --all
+    uv run src/download_voices.py --lang en
 """
 import argparse
 import sys
