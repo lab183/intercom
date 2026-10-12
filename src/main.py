@@ -1,5 +1,4 @@
 import argparse
-import os
 import sys
 
 import numpy as np
@@ -104,6 +103,8 @@ def get_text(args):
     if sys.stdin.isatty():
         eof = "Ctrl+Z" if sys.platform == "win32" else "Ctrl+D"
         print(f"Enter text, then press {eof} and Enter to finish:", file=sys.stderr)
+    # Piped input is decoded with the locale encoding by default (cp1252 on Windows).
+    sys.stdin.reconfigure(encoding="utf-8")
     return sys.stdin.read()
 
 

@@ -5,7 +5,6 @@ HTTP server with `--transport streamable-http`. See README.md for client configu
 """
 import argparse
 import asyncio
-import os
 import sys
 import threading
 from pathlib import Path
@@ -25,6 +24,8 @@ mcp = MCPServer(
 
 # Pocket TTS models aren't safe to drive from several threads at once.
 _synth_lock = threading.Lock()
+
+
 def _synthesize(text, voice, lang):
     with _synth_lock:
         return engine.synthesize(text, voice, lang)
