@@ -1,8 +1,8 @@
 # intercom
 
-Windows-only text-to-speech tool built on Pocket TTS (`pocket-tts`), shipped as a CLI (`intercom`)
+Cross-platform (Windows, Linux, macOS arm64) text-to-speech tool built on Pocket TTS (`pocket-tts`), shipped as a CLI (`intercom`)
 and an MCP server (`intercom-mcp`) so a local agent can speak. Keep it simple: it does one thing,
-speaks text. Don't add features (streaming, queues, speed/pitch, cross-platform playback) unless asked.
+speaks text. Don't add features (streaming, queues, speed/pitch) unless asked.
 
 ## Layout
 
@@ -11,6 +11,8 @@ speaks text. Don't add features (streaming, queues, speed/pitch, cross-platform 
 - `src/mcp_server.py` — MCP server (`intercom`, `stop_speaking`, `list_voices`) over stdio (default) or
   streamable HTTP (`--transport streamable-http`, loopback only unless `--allow-remote`). SSE is
   deliberately not supported. Imports `main` as `engine`.
+- `src/player.py` — playback via `sounddevice` (PortAudio): `play(pcm, rate, block)` and `stop()`;
+  raises `PlaybackError`. Starting a clip replaces the one playing.
 - `src/download_voices.py` — pre-downloads voices; imports its voice data from `main`.
 - Modules are flat `py-modules` under `src/` (see `pyproject.toml`), not a package. The folder is
   still named `ptts` on disk; the project was renamed to `intercom`.
@@ -30,9 +32,9 @@ speaks text. Don't add features (streaming, queues, speed/pitch, cross-platform 
 - The HTTP transport has no auth. Keep the loopback-by-default guard; the tool makes sound on the host.
 - To test HTTP, start the server in the background on a spare port, use
   `mcp.client.streamable_http.streamable_http_client`, and kill the server afterwards.
-- Playback must block in the CLI (`winsound.PlaySound` without `SND_ASYNC`): the process exits and
-  the temp file is deleted right after. The server is long-lived, so it uses `SND_ASYNC` and keeps
-  the temp file until the next clip, stop, or exit.
+- Playback must block in the CLI (`player.play(..., block=True)`) or the process exits mid-clip. The server
+  doesn't block unless `wait` is set. `sounddevice` is imported lazily: PortAudio is a system library on
+  Linux, and a missing one must surface as `PlaybackError`, not an import crash.
 - pocket_tts reads its YAML configs with the locale encoding, which breaks on Windows;
   `patch_config_loading()` re-implements the load as UTF-8. Keep it.
 - Don't run `intercom` or the MCP tools for real unless needed; they play audio on the user's speakers.

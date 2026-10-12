@@ -1,11 +1,11 @@
 import argparse
 import os
 import sys
-import tempfile
-import winsound
 
 import numpy as np
 import scipy.io.wavfile
+
+import player
 
 POCKET_TTS_VOICES = {
     "en": ["alba", "anna", "azelma", "bill_boerst", "caro_davy", "charles", "cosette", "eponine", "eve", "fantine", "george", "jane", "jean", "javert", "marius", "mary", "michael", "paul", "peter_yearsley", "stuart_bell", "vera"],
@@ -102,12 +102,13 @@ def get_text(args):
     if args.text and args.text != ["-"]:
         return " ".join(args.text)
     if sys.stdin.isatty():
-        print("Enter text, then press Ctrl+Z and Enter to finish:", file=sys.stderr)
+        eof = "Ctrl+Z" if sys.platform == "win32" else "Ctrl+D"
+        print(f"Enter text, then press {eof} and Enter to finish:", file=sys.stderr)
     return sys.stdin.read()
 
 
 def to_pcm16(audio):
-    """Convert float audio in [-1, 1] to 16-bit PCM, which winsound can play."""
+    """Convert float audio in [-1, 1] to 16-bit PCM, which is what the player and WAV files use."""
     return (np.clip(audio, -1.0, 1.0) * 32767).astype(np.int16)
 
 
@@ -166,14 +167,11 @@ def main(argv=None):
         scipy.io.wavfile.write(args.output, sample_rate, pcm)
 
     if not args.no_play:
-        fd, path = tempfile.mkstemp(suffix=".wav")
-        os.close(fd)
         try:
-            scipy.io.wavfile.write(path, sample_rate, pcm)
-            # Blocks until playback finishes
-            winsound.PlaySound(path, winsound.SND_FILENAME)
-        finally:
-            os.unlink(path)
+            player.play(pcm, sample_rate, block=True)  # blocks until playback finishes
+        except player.PlaybackError as e:
+            print(f"intercom: {e}", file=sys.stderr)
+            return 1
 
     return 0
 

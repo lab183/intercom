@@ -1,24 +1,20 @@
-"""MCP server that lets a local agent speak through Pocket TTS (Windows only).
+"""MCP server that lets a local agent speak through Pocket TTS.
 
 Run it with `intercom-mcp` (or `uv run src/mcp_server.py`): over stdio by default, or as an
 HTTP server with `--transport streamable-http`. See README.md for client configuration.
 """
 import argparse
 import asyncio
-import atexit
-import contextlib
 import os
 import sys
-import tempfile
 import threading
-import winsound
 from pathlib import Path
 
-import scipy.io.wavfile
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 
 import main as engine
+import player
 
 mcp = MCPServer(
     "intercom",
@@ -29,22 +25,6 @@ mcp = MCPServer(
 
 # Pocket TTS models aren't safe to drive from several threads at once.
 _synth_lock = threading.Lock()
-# winsound can't play from memory asynchronously, so the temp file of the clip that is
-# currently playing is kept until the next clip, stop, or exit.
-_playing_path = None
-
-
-def _cleanup_playing():
-    global _playing_path
-    if _playing_path:
-        with contextlib.suppress(OSError):
-            os.unlink(_playing_path)
-        _playing_path = None
-
-
-atexit.register(_cleanup_playing)
-
-
 def _synthesize(text, voice, lang):
     with _synth_lock:
         return engine.synthesize(text, voice, lang)
@@ -71,20 +51,10 @@ def _check_voice(voice):
 
 
 def _play(pcm, sample_rate, wait):
-    global _playing_path
-    winsound.PlaySound(None, winsound.SND_PURGE)
-    _cleanup_playing()
-    fd, path = tempfile.mkstemp(suffix=".wav")
-    os.close(fd)
-    scipy.io.wavfile.write(path, sample_rate, pcm)
-    if wait:
-        try:
-            winsound.PlaySound(path, winsound.SND_FILENAME)
-        finally:
-            os.unlink(path)
-    else:
-        _playing_path = path
-        winsound.PlaySound(path, winsound.SND_FILENAME | winsound.SND_ASYNC)
+    try:
+        player.play(pcm, sample_rate, block=wait)  # replaces any clip still playing
+    except player.PlaybackError as e:
+        raise ToolError(str(e)) from e
 
 
 @mcp.tool()
@@ -125,8 +95,10 @@ async def intercom(
 @mcp.tool()
 def stop_speaking() -> str:
     """Immediately stop any speech that is currently playing."""
-    winsound.PlaySound(None, winsound.SND_PURGE)
-    _cleanup_playing()
+    try:
+        player.stop()
+    except player.PlaybackError as e:
+        raise ToolError(str(e)) from e
     return "Stopped playback."
 
 

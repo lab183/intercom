@@ -1,13 +1,14 @@
 [project]
 name = "intercom"
 version = "0.1.0"
-description = "Text-to-speech CLI and MCP server built on Pocket TTS (Windows)"
+description = "Text-to-speech CLI and MCP server built on Pocket TTS (Windows, Linux, macOS)"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "mcp>=2.3",
     "pocket-tts>=3.3.0",
     "scipy>=1.18.1",
+    "sounddevice>=0.5",
 ]
 
 [project.scripts]
@@ -20,4 +21,4 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
-py-modules = ["main", "mcp_server"]
+py-modules = ["main", "mcp_server", "player", "download_voices"]

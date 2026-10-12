@@ -2,11 +2,14 @@
 
 A small command-line tool that converts text to speech with
 [Pocket TTS](https://pypi.org/project/pocket-tts/) and plays it. It also ships an
-[MCP server](#mcp-server) so a local agent can talk through it. Windows only (uses `winsound`).
+[MCP server](#mcp-server) so a local agent can talk through it. Works on Windows, Linux and macOS (Apple silicon).
 
 ## Install
 
-Requires Python 3.12+ and [uv](https://docs.astral.sh/uv/).
+Requires Python 3.12+ and [uv](https://docs.astral.sh/uv/). Audio plays through
+[sounddevice](https://python-sounddevice.readthedocs.io/) (PortAudio), which is bundled on Windows and
+macOS. On Linux install the system library first, e.g. `sudo apt install libportaudio2`. Intel Macs are
+not supported (PyTorch no longer ships wheels for them).
 
 ```
 uv tool install .
@@ -49,7 +52,7 @@ messages play much faster than running the CLI each time.
 The client launches the server itself. For Claude Code:
 
 ```
-claude mcp add intercom -- uv run --directory C:/path/to/intercom intercom-mcp
+claude mcp add intercom -- uv run --directory /path/to/intercom intercom-mcp
 ```
 
 Or, if you installed it with `uv tool install .`, point the client at the `intercom-mcp` command.
@@ -60,7 +63,7 @@ For clients configured with JSON:
   "mcpServers": {
     "intercom": {
       "command": "uv",
-      "args": ["run", "--directory", "C:/path/to/intercom", "intercom-mcp"]
+      "args": ["run", "--directory", "/path/to/intercom", "intercom-mcp"]
     }
   }
 }
