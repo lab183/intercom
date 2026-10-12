@@ -2,7 +2,7 @@
 
 A small command-line tool that converts text to speech with
 [Pocket TTS](https://pypi.org/project/pocket-tts/) and plays it. It also ships an
-[MCP server](#mcp-server) so a local agent can talk through it. Works on Windows, Linux and macOS (Apple silicon).
+[MCP server](#mcp-server) so a local agent can talk through it. Works on Windows, Linux and macOS (Apple silicon); tested on macOS.
 
 ## Install
 
