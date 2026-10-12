@@ -83,8 +83,11 @@ def language_for_voice(voice):
 
 
 def check_voice(voice):
-    """Raise ValueError, with a useful message, for voices that can't possibly load."""
-    if language_for_voice(voice) or voice.startswith(("hf://", "http")):
+    """Raise ValueError, with a useful message, for voices that can't possibly load.
+
+    http(s):// URLs are rejected on purpose: pocket_tts would fetch them as-is, which would let
+    a caller of the MCP server make this machine request arbitrary URLs."""
+    if language_for_voice(voice) or voice.startswith("hf://"):
         return
     if not Path(voice).is_file():
         raise ValueError(
