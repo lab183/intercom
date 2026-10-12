@@ -7,7 +7,6 @@ import argparse
 import asyncio
 import sys
 import threading
-from pathlib import Path
 
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
@@ -38,17 +37,6 @@ def _warm_up():
             engine.load_voice()
     except Exception as e:
         print(f"intercom: warm-up failed: {e}", file=sys.stderr)
-
-
-def _check_voice(voice):
-    """Fail early, with a useful message, on voices that can't possibly load."""
-    if engine.language_for_voice(voice) or voice.startswith(("hf://", "http")):
-        return
-    if not Path(voice).is_file():
-        raise ToolError(
-            f"unknown voice {voice!r}: use a name from list_voices, an hf:// URL, "
-            "or the path to an audio file"
-        )
 
 
 def _play(pcm, sample_rate, wait):
@@ -82,7 +70,10 @@ async def intercom(
         raise ToolError("message is empty")
     if lang is not None and lang not in engine.LANGUAGE_NAMES:
         raise ToolError(f"unknown lang {lang!r}; choose from {', '.join(engine.LANGUAGE_NAMES)}")
-    _check_voice(voice)
+    try:
+        engine.check_voice(voice)
+    except ValueError as e:
+        raise ToolError(str(e)) from e
 
     try:
         pcm, sample_rate = await asyncio.to_thread(_synthesize, message, voice, lang)

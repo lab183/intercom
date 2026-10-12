@@ -1,5 +1,6 @@
 import argparse
 import sys
+from pathlib import Path
 
 import numpy as np
 import scipy.io.wavfile
@@ -81,6 +82,17 @@ def language_for_voice(voice):
     return None
 
 
+def check_voice(voice):
+    """Raise ValueError, with a useful message, for voices that can't possibly load."""
+    if language_for_voice(voice) or voice.startswith(("hf://", "http")):
+        return
+    if not Path(voice).is_file():
+        raise ValueError(
+            f"unknown voice {voice!r}: use a pre-made voice name (see --list-voices), "
+            "an hf:// URL, or the path to an audio file"
+        )
+
+
 def patch_config_loading():
     """pocket_tts reads its YAML configs with the locale encoding, which breaks on
     Windows (cp1252) for the non-English configs. Re-implement the load as UTF-8."""
@@ -160,6 +172,12 @@ def main(argv=None):
         return 1
     if args.no_play and not args.output:
         print("intercom: --no-play requires --output", file=sys.stderr)
+        return 1
+
+    try:
+        check_voice(args.voice)
+    except ValueError as e:
+        print(f"intercom: {e}", file=sys.stderr)
         return 1
 
     pcm, sample_rate = synthesize(text, args.voice, args.lang)
