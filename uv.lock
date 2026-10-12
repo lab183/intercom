@@ -586,7 +586,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "mcp", specifier = ">=2.3" },
-    { name = "pocket-tts", specifier = ">=3.3.0" },
+    { name = "pocket-tts", specifier = ">=3.3.0,<4" },
     { name = "scipy", specifier = ">=1.18.1" },
     { name = "sounddevice", specifier = ">=0.5" },
 ]
